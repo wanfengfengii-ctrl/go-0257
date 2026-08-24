@@ -183,7 +183,9 @@ func (s *Service) assembleView(t *inspection.InspectionTask) TaskView {
 }
 
 // assertBlindCodesFree rejects creation when any blind code is already bound
-// to another open task.
+// to another open task. A terminal task (released, quarantined or cancelled)
+// no longer holds its resources, so its blind codes are free to reuse for a
+// new seed batch.
 func (s *Service) assertBlindCodesFree(tx store.Tx, allocs []inspection.BlindAllocation) *domain.Error {
 	tasks, err := tx.ListTasks()
 	if err != nil {
@@ -191,6 +193,9 @@ func (s *Service) assertBlindCodesFree(tx store.Tx, allocs []inspection.BlindAll
 	}
 	bound := make(map[string]string)
 	for _, t := range tasks {
+		if t.IsTerminal() {
+			continue
+		}
 		for _, a := range t.BlindAllocs {
 			bound[a.Code] = string(t.ID)
 		}
