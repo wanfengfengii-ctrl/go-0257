@@ -734,7 +734,10 @@ func (t *sqliteTx) SaveGermination(g germination.GerminationCell) error {
 }
 
 func (t *sqliteTx) SaveMoisture(m measure.MoisturePurityEvidence) error {
-	pass := 1
+	pass := 0
+	if m.PassThreshold {
+		pass = 1
+	}
 	_, err := t.tx.Exec(`INSERT INTO moisture (task_id, moisture, purity_grains, thousand_grain, derived_purity, pass_threshold, attempt_id, collector, version)
 		VALUES (?,?,?,?,?,?,?,?,?)`,
 		m.TaskID, m.Moisture, m.PurityGrains, m.ThousandGrain, m.DerivedPurity, pass, m.AttemptID, m.Collector, m.Version)
