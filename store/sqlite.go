@@ -708,7 +708,7 @@ func (t *sqliteTx) SaveSplit(sp blindcode.TripleSplit) error {
 }
 
 func (t *sqliteTx) MarkBlindUnblinded(task inspection.TaskID, code blindcode.BlindCode) error {
-	_, err := t.tx.Exec(`UPDATE blind_samples SET unblinded = 1 WHERE task_id = ? AND code = ? AND unblinded = 1`, task, code)
+	_, err := t.tx.Exec(`UPDATE blind_samples SET unblinded = 1 WHERE task_id = ? AND code = ?`, task, code)
 	return err
 }
 
