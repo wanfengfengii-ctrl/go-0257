@@ -20,6 +20,9 @@ func PurityDerive(pure, total int64) (Fixed, *domain.Error) {
 	if pure > total {
 		return 0, domain.NewError(domain.CodeBadRequest, "pure grains exceed total")
 	}
+	if overflows(pure, basisPointsPerFraction) {
+		return 0, domain.NewError(domain.CodeFixedPointOverflow, "purity scale overflow")
+	}
 	return Fixed(pure * basisPointsPerFraction / total), nil
 }
 
