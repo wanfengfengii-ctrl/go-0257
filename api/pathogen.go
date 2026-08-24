@@ -224,6 +224,24 @@ func currentRejudgeGen(ev []pathogen.PathogenEvidence) inspection.Generation {
 	return max
 }
 
+// latestByWell reduces pathogen evidence to the current conclusion per well.
+// Evidence is append-only: a well may carry the original reading, later
+// re-judgment resolutions and isolated late readings. The current conclusion
+// is the newest non-isolated row for the well; isolated late readings never
+// count toward the current state. Rows are returned in insertion order (the
+// store orders by rowid), so the last matching row per well wins.
+func latestByWell(ev []pathogen.PathogenEvidence) map[string]pathogen.PathogenEvidence {
+	out := make(map[string]pathogen.PathogenEvidence)
+	for _, e := range ev {
+		if e.LateIsolated {
+			continue
+		}
+		key := string(e.Plate) + "/" + string(e.Well)
+		out[key] = e
+	}
+	return out
+}
+
 func containsWell(wells []string, w string) bool {
 	for _, x := range wells {
 		if x == w {

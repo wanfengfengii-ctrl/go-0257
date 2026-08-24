@@ -49,6 +49,20 @@ func OpenSQLite(path string) (*SQLite, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	// Migrate legacy schemas: the pathogen index was once UNIQUE on
+	// (task_id, plate, well), which blocked appending re-judgment resolutions
+	// and isolated late readings for an already-read well. schemaDDL now
+	// declares a non-unique index, but CREATE INDEX IF NOT EXISTS is a no-op
+	// when a same-named unique index already exists from an older schema, so
+	// drop and recreate it to guarantee the non-unique index applies.
+	if _, err := db.Exec(`DROP INDEX IF EXISTS idx_pathogen_well`); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_pathogen_well ON pathogen(task_id, plate, well)`); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	if err := ensureClock(db); err != nil {
 		_ = db.Close()
 		return nil, err
@@ -231,7 +245,7 @@ func (s *SQLite) ListMoisture(id inspection.TaskID) ([]measure.MoisturePurityEvi
 
 func (s *SQLite) ListPathogen(id inspection.TaskID) ([]pathogen.PathogenEvidence, error) {
 	rows, err := s.db.Query(`SELECT task_id, blind_code, plate, well, reading, verdict, device_status, verifier, rejudge_gen, contaminated, late_isolated
-		FROM pathogen WHERE task_id = ? ORDER BY plate, well`, id)
+		FROM pathogen WHERE task_id = ? ORDER BY plate, well, rowid`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -565,7 +579,7 @@ func (t *sqliteTx) ListMoisture(id inspection.TaskID) ([]measure.MoisturePurityE
 
 func (t *sqliteTx) ListPathogen(id inspection.TaskID) ([]pathogen.PathogenEvidence, error) {
 	rows, err := t.tx.Query(`SELECT task_id, blind_code, plate, well, reading, verdict, device_status, verifier, rejudge_gen, contaminated, late_isolated
-		FROM pathogen WHERE task_id = ? ORDER BY plate, well`, id)
+		FROM pathogen WHERE task_id = ? ORDER BY plate, well, rowid`, id)
 	if err != nil {
 		return nil, err
 	}

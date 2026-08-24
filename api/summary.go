@@ -85,10 +85,12 @@ func (s *Service) germinationRate(tx store.Tx, task *inspection.InspectionTask) 
 	return rate, true
 }
 
-// pathogenContaminated reports whether any pathogen evidence is positive or
-// contaminated.
+// pathogenContaminated reports whether the current conclusion of any well is
+// positive or contaminated. Evidence is append-only — a re-judgment that clears
+// a well appends a newer non-contaminated row — so only the latest non-isolated
+// conclusion per well counts toward the current state.
 func pathogenContaminated(paths []pathogen.PathogenEvidence) bool {
-	for _, p := range paths {
+	for _, p := range latestByWell(paths) {
 		if p.Contaminated || p.Verdict == pathogen.VerdictPositive {
 			return true
 		}

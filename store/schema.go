@@ -127,8 +127,11 @@ CREATE TABLE IF NOT EXISTS pathogen (
 	contaminated  INTEGER NOT NULL,
 	late_isolated INTEGER NOT NULL
 );
-CREATE UNIQUE INDEX IF NOT EXISTS idx_pathogen_well
-	ON pathogen(task_id, plate, well);
+-- A well accumulates one reading per generation-scoped re-judgment layer:
+-- the original reading, subsequent re-judgment resolutions and isolated late
+-- readings all share (task_id, plate, well). The index is therefore
+-- non-unique; the read model resolves the current conclusion per well.
+CREATE INDEX IF NOT EXISTS idx_pathogen_well ON pathogen(task_id, plate, well);
 CREATE INDEX IF NOT EXISTS idx_pathogen_task ON pathogen(task_id);
 
 CREATE TABLE IF NOT EXISTS attempts (
