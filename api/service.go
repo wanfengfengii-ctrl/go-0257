@@ -45,16 +45,14 @@ func NewService(c catalog.Catalog, r catalog.RoleDirectory, s store.Store, amp p
 // CreateTask creates and locks a new inspection task after validating the
 // variety, field, parental certificates, blind-code allocations, resources
 // and reviewer roster. Identical idempotent retries return the recorded
-// result.
+// result. The idempotency lookup runs inside the creation transaction so two
+// clients submitting the same operation_id concurrently both observe the
+// recorded result instead of racing into a blind-code or seed-lot conflict.
 func (s *Service) CreateTask(req CreateTaskRequest) (CreateTaskResponse, *domain.Error) {
 	digest := inspection.Digest(fmt.Sprintf("%v", req.BlindAllocs), req.SeedLot, req.Field,
 		req.Variety, intText(req.FemaleCert), intText(req.MaleCert), req.Chamber,
 		uintText(req.ChamberStart), uintText(req.ChamberEnd), req.Plate, fmt.Sprintf("%v", req.Wells),
 		fmt.Sprintf("%v", req.ReviewerRoster))
-
-	if rec, ok := s.store.FindOperation(req.OperationID); ok {
-		return s.resolveCreate(rec, digest)
-	}
 
 	variety, ok := s.catalog.Variety(catalog.VarietyID(req.Variety))
 	if !ok {
@@ -86,6 +84,20 @@ func (s *Service) CreateTask(req CreateTaskRequest) (CreateTaskResponse, *domain
 
 	var resp CreateTaskResponse
 	err := s.store.Mutate(func(tx store.Tx) error {
+		// Resolve idempotency inside the transaction so a concurrent twin of
+		// this operation commits its record before we look it up; we then
+		// replay its result rather than colliding on the blind codes or seed
+		// lot it just bound.
+		if rec, ok := tx.FindOperation(req.OperationID); ok {
+			if rec.RequestDigest != digest {
+				return domain.NewError(domain.CodeIdempotencyConflict, "operation content conflict", rec.OperationID)
+			}
+			var prior CreateTaskResponse
+			_ = json.Unmarshal([]byte(rec.ResultDigest), &prior)
+			resp = prior
+			return nil
+		}
+
 		// Blind codes must not be bound to another open task.
 		if err := s.assertBlindCodesFree(tx, allocs); err != nil {
 			return err
@@ -128,15 +140,6 @@ func (s *Service) CreateTask(req CreateTaskRequest) (CreateTaskResponse, *domain
 	if err != nil {
 		return CreateTaskResponse{}, asDomain(err)
 	}
-	return resp, nil
-}
-
-func (s *Service) resolveCreate(rec *inspection.IdempotencyRecord, digest string) (CreateTaskResponse, *domain.Error) {
-	if rec.RequestDigest != digest {
-		return CreateTaskResponse{}, domain.NewError(domain.CodeIdempotencyConflict, "operation content conflict", rec.OperationID)
-	}
-	var resp CreateTaskResponse
-	_ = json.Unmarshal([]byte(rec.ResultDigest), &resp)
 	return resp, nil
 }
 
