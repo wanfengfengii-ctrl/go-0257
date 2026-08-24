@@ -28,9 +28,16 @@ func (s *Service) RecordPathogen(id string, req PathogenRequest) (PathogenRespon
 		if rec.RequestDigest != digest {
 			return PathogenResponse{}, domain.NewError(domain.CodeIdempotencyConflict, "operation content conflict", req.OperationID)
 		}
-		var resp PathogenResponse
-		_ = json.Unmarshal([]byte(rec.ResultDigest), &resp)
-		return resp, nil
+		// A pending-retry device fault is not a completed operation: its
+		// recorded result is empty, so replaying it would surface an empty
+		// success instead of re-driving the amplifier. Fall through so a
+		// retry either forms a valid reading (device now healthy) or fails
+		// retryable again. A successful retry overwrites the pending record.
+		if rec.ResponseCode != domain.CodeDeviceRetryable {
+			var resp PathogenResponse
+			_ = json.Unmarshal([]byte(rec.ResultDigest), &resp)
+			return resp, nil
+		}
 	}
 
 	// Obtain the reading (and attempt history) from the instrument before
