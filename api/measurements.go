@@ -31,17 +31,12 @@ func (s *Service) RecordMoisture(id string, req MoistureRequest) (MoistureRespon
 
 	var resp MoistureResponse
 	err := s.store.Mutate(func(tx store.Tx) error {
-		var moisture measure.Fixed
-		var derr *domain.Error
-		if req.Moisture != "" {
-			moisture, derr = measure.ParsePercent(req.Moisture)
-		} else {
-			moisture, _, derr = measure.MeterAttempt(s.meter, req.OperationID, measure.DefaultMeterAttempts)
-		}
-		if derr != nil {
-			return derr
-		}
-
+		// Validate the task state before invoking the moisture meter. A
+		// premature call (e.g. the console triggering moisture re-measurement
+		// while the task is still in an earlier stage) must be rejected by
+		// state, otherwise it would drain the meter's bounded retry budget and
+		// the scripted timeout that should appear during the legitimate
+		// moisture stage would already be consumed.
 		t, err := tx.GetTask(taskID)
 		if err != nil {
 			return err
@@ -51,6 +46,17 @@ func (s *Service) RecordMoisture(id string, req MoistureRequest) (MoistureRespon
 		}
 		if t.Status != inspection.StatusMoisture {
 			return domain.NewError(domain.CodeBadRequest, "not in moisture state", string(t.Status))
+		}
+
+		var moisture measure.Fixed
+		var derr *domain.Error
+		if req.Moisture != "" {
+			moisture, derr = measure.ParsePercent(req.Moisture)
+		} else {
+			moisture, _, derr = measure.MeterAttempt(s.meter, req.OperationID, measure.DefaultMeterAttempts)
+		}
+		if derr != nil {
+			return derr
 		}
 
 		if derr := measure.ThousandGrainValidate(req.ThousandGrain); derr != nil {
