@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RiceGuard 检验控制台</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>RiceGuard 放播前联合检验控制台</h1>
+      <span id="health" class="health">…</span>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>新建检验任务（建检锁定）</h2>
+        <form id="create-form" class="grid">
+          <label>操作号 <input name="operation_id" required /></label>
+          <label>种子批号 <input name="seed_lot" required /></label>
+          <label>田块 <input name="field" value="field-01" /></label>
+          <label>品种组合
+            <select name="variety" id="variety-select"></select>
+          </label>
+          <label>母本证明修订 <input name="female_cert_revision" type="number" value="3" /></label>
+          <label>父本证明修订 <input name="male_cert_revision" type="number" value="3" /></label>
+          <label>盲码（逗号分隔） <input name="blind_codes" value="b1,b2" /></label>
+          <label>催芽舱 <input name="chamber" value="ch-1" /></label>
+          <label>舱位开始 <input name="chamber_start" type="number" value="100" /></label>
+          <label>舱位结束 <input name="chamber_end" type="number" value="200" /></label>
+          <label>检测板 <input name="plate" value="p-1" /></label>
+          <label>板孔（逗号分隔） <input name="wells" value="w1,w2" /></label>
+          <label>复核人员（逗号分隔） <input name="reviewer_roster" value="reviewer-f,reviewer-g" /></label>
+          <button type="submit">建检锁定</button>
+        </form>
+        <p id="create-result" class="result"></p>
+      </section>
+
+      <section class="card">
+        <h2>检验任务列表</h2>
+        <table id="tasks-table">
+          <thead>
+            <tr>
+              <th>任务 ID</th><th>种子批号</th><th>品种</th><th>状态</th><th>代次</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="tasks-body"></tbody>
+        </table>
+      </section>
+
+      <section class="card" id="detail-card" hidden>
+        <h2 id="detail-title">任务详情</h2>
+        <div id="detail-summary" class="summary"></div>
+        <div class="actions" id="detail-actions"></div>
+        <pre id="detail-raw" class="raw"></pre>
+      </section>
+    </main>
+
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
