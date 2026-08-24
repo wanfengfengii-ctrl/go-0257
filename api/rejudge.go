@@ -41,7 +41,7 @@ func (s *Service) ResolveRejudge(id string, req RejudgeRequest) (RejudgeResponse
 	taskID := inspection.TaskID(id)
 	digest := inspection.Digest(req.Verifier, req.Conclusion, joinStrings(req.BlindCodes), joinStrings(req.Wells))
 
-	if rec, ok := s.store.FindOperation(req.OperationID); ok {
+	if rec, ok := s.store.FindOperation(taskID, req.OperationID); ok {
 		if rec.RequestDigest != digest {
 			return RejudgeResponse{}, domain.NewError(domain.CodeIdempotencyConflict, "operation content conflict", req.OperationID)
 		}

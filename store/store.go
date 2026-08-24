@@ -39,7 +39,7 @@ type Reader interface {
 	GetCredential(inspection.TaskID) (*inspection.ReleaseCredential, error)
 	ListAudit(inspection.TaskID) ([]inspection.AuditEvent, error)
 	ListAllAudit() ([]inspection.AuditEvent, error)
-	FindOperation(string) (*inspection.IdempotencyRecord, bool)
+	FindOperation(inspection.TaskID, string) (*inspection.IdempotencyRecord, bool)
 }
 
 // Tx is a single atomic transaction. Every write performed through a Tx is

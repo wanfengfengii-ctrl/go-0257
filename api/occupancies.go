@@ -17,7 +17,7 @@ func (s *Service) Occupy(id string, req OccupyRequest) (OccupyResponse, *domain.
 	taskID := inspection.TaskID(id)
 	digest := inspection.Digest("occupy")
 
-	if rec, ok := s.store.FindOperation(req.OperationID); ok {
+	if rec, ok := s.store.FindOperation(taskID, req.OperationID); ok {
 		if rec.RequestDigest != digest {
 			return OccupyResponse{}, domain.NewError(domain.CodeIdempotencyConflict, "operation content conflict", req.OperationID)
 		}

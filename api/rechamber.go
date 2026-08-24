@@ -34,7 +34,7 @@ func (s *Service) Rechamber(id string, req RechamberRequest) (RechamberResponse,
 	taskID := inspection.TaskID(id)
 	digest := inspection.Digest(req.Chamber, uintText(req.ChamberStart), uintText(req.ChamberEnd))
 
-	if rec, ok := s.store.FindOperation(req.OperationID); ok {
+	if rec, ok := s.store.FindOperation(taskID, req.OperationID); ok {
 		if rec.RequestDigest != digest {
 			return RechamberResponse{}, domain.NewError(domain.CodeIdempotencyConflict, "operation content conflict", req.OperationID)
 		}

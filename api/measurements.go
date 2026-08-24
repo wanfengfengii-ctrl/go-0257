@@ -20,7 +20,7 @@ func (s *Service) RecordMoisture(id string, req MoistureRequest) (MoistureRespon
 	taskID := inspection.TaskID(id)
 	digest := inspection.Digest(req.Moisture, int64Text(req.PurityGrains), int64Text(req.TotalGrains), int64Text(req.ThousandGrain), req.Collector)
 
-	if rec, ok := s.store.FindOperation(req.OperationID); ok {
+	if rec, ok := s.store.FindOperation(taskID, req.OperationID); ok {
 		if rec.RequestDigest != digest {
 			return MoistureResponse{}, domain.NewError(domain.CodeIdempotencyConflict, "operation content conflict", req.OperationID)
 		}

@@ -32,7 +32,7 @@ func (s *Service) Cancel(id string, req CancelRequest) (CancelResponse, *domain.
 	taskID := inspection.TaskID(id)
 	digest := inspection.Digest(req.Reason)
 
-	if rec, ok := s.store.FindOperation(req.OperationID); ok {
+	if rec, ok := s.store.FindOperation(taskID, req.OperationID); ok {
 		if rec.RequestDigest != digest {
 			return CancelResponse{}, domain.NewError(domain.CodeIdempotencyConflict, "operation content conflict", req.OperationID)
 		}

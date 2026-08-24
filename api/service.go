@@ -52,7 +52,7 @@ func (s *Service) CreateTask(req CreateTaskRequest) (CreateTaskResponse, *domain
 		uintText(req.ChamberStart), uintText(req.ChamberEnd), req.Plate, fmt.Sprintf("%v", req.Wells),
 		fmt.Sprintf("%v", req.ReviewerRoster))
 
-	if rec, ok := s.store.FindOperation(req.OperationID); ok {
+	if rec, ok := s.store.FindOperation(inspection.CreateScope, req.OperationID); ok {
 		return s.resolveCreate(rec, digest)
 	}
 
@@ -122,7 +122,11 @@ func (s *Service) CreateTask(req CreateTaskRequest) (CreateTaskResponse, *domain
 			return err
 		}
 		resp = CreateTaskResponse{TaskID: string(t.ID), Status: t.Status, Generation: t.Generation}
-		tx.RecordOperation(inspection.NewRecord(req.OperationID, t.ID, t.Generation, digest, encode(resp)))
+		// Record the create operation under the reserved create scope so its
+		// idempotency key is scoped to create-task rather than to the just-minted
+		// task ID (which did not exist at lookup time). Reusing this operation ID
+		// on a different task later therefore resolves only against this create.
+		tx.RecordOperation(inspection.NewRecord(req.OperationID, inspection.CreateScope, t.Generation, digest, encode(resp)))
 		return tx.AppendAudit(audit(now, "system", t.Status, "create_task", domain.CodeNone, nil))
 	})
 	if err != nil {

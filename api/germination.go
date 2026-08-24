@@ -19,7 +19,7 @@ func (s *Service) RecordGermination(id string, req GerminationRequest) (Germinat
 	digest := inspection.Digest(req.BlindCode, intText(req.DayAge), intText(int32(req.Normal)),
 		intText(int32(req.Abnormal)), intText(int32(req.Dead)), boolText(req.Retest), req.Collector)
 
-	if rec, ok := s.store.FindOperation(req.OperationID); ok {
+	if rec, ok := s.store.FindOperation(taskID, req.OperationID); ok {
 		if rec.RequestDigest != digest {
 			return GerminationResponse{}, domain.NewError(domain.CodeIdempotencyConflict, "operation content conflict", req.OperationID)
 		}

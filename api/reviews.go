@@ -17,7 +17,7 @@ func (s *Service) Review(id string, req ReviewRequest) (ReviewResponse, *domain.
 	taskID := inspection.TaskID(id)
 	digest := inspection.Digest(req.Reviewer, req.Conclusion)
 
-	if rec, ok := s.store.FindOperation(req.OperationID); ok {
+	if rec, ok := s.store.FindOperation(taskID, req.OperationID); ok {
 		if rec.RequestDigest != digest {
 			return ReviewResponse{}, domain.NewError(domain.CodeIdempotencyConflict, "operation content conflict", req.OperationID)
 		}
@@ -110,7 +110,7 @@ func (s *Service) Finalize(id string, req FinalizeRequest) (FinalizeResponse, *d
 	taskID := inspection.TaskID(id)
 	digest := inspection.Digest(req.Outcome, req.Reason)
 
-	if rec, ok := s.store.FindOperation(req.OperationID); ok {
+	if rec, ok := s.store.FindOperation(taskID, req.OperationID); ok {
 		if rec.RequestDigest != digest {
 			return FinalizeResponse{}, domain.NewError(domain.CodeIdempotencyConflict, "operation content conflict", req.OperationID)
 		}

@@ -17,7 +17,7 @@ func (s *Service) ConfirmSampling(id string, req SamplingRequest) (SamplingRespo
 	taskID := inspection.TaskID(id)
 	digest := inspection.Digest(req.Reviewer, req.Field, req.SeedLot, req.BlindSeal, intText(int32(req.SampleCount)))
 
-	if rec, ok := s.store.FindOperation(req.OperationID); ok {
+	if rec, ok := s.store.FindOperation(taskID, req.OperationID); ok {
 		if rec.RequestDigest != digest {
 			return SamplingResponse{}, domain.NewError(domain.CodeIdempotencyConflict, "operation content conflict", req.OperationID)
 		}

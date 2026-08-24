@@ -17,7 +17,7 @@ func (s *Service) SplitBlindSamples(id string, req SplitRequest) (SplitResponse,
 	taskID := inspection.TaskID(id)
 	digest := inspection.Digest("split")
 
-	if rec, ok := s.store.FindOperation(req.OperationID); ok {
+	if rec, ok := s.store.FindOperation(taskID, req.OperationID); ok {
 		if rec.RequestDigest != digest {
 			return SplitResponse{}, domain.NewError(domain.CodeIdempotencyConflict, "operation content conflict", req.OperationID)
 		}

@@ -11,6 +11,14 @@ import (
 // TaskID identifies a seed batch inspection task.
 type TaskID string
 
+// CreateScope is the reserved task scope for create-task idempotency. A create
+// operation has no task ID yet at lookup time, so it is recorded and resolved
+// under this empty scope rather than a per-task scope; the generated task ID
+// travels inside the recorded result digest. Real task IDs are never empty, so
+// the create scope never collides with a per-task operation record, which lets
+// an operation ID reused across different tasks affect only the current task.
+const CreateScope TaskID = ""
+
 // Generation is the task generation number. Every state advancement that
 // opens a new evidence window increments it; stale writers are rejected by
 // comparing against the current generation.

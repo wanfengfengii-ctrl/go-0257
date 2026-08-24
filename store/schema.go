@@ -164,13 +164,14 @@ CREATE TABLE IF NOT EXISTS credentials (
 );
 
 CREATE TABLE IF NOT EXISTS operations (
-	operation_id   TEXT PRIMARY KEY,
 	task_id        TEXT NOT NULL,
+	operation_id   TEXT NOT NULL,
 	generation     INTEGER NOT NULL,
 	request_digest TEXT NOT NULL,
 	response_code  TEXT NOT NULL,
 	reasons        TEXT NOT NULL,
-	result_digest  TEXT NOT NULL
+	result_digest  TEXT NOT NULL,
+	PRIMARY KEY (task_id, operation_id)
 );
 
 CREATE TABLE IF NOT EXISTS audit (

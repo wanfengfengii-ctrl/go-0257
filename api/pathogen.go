@@ -24,7 +24,7 @@ func (s *Service) RecordPathogen(id string, req PathogenRequest) (PathogenRespon
 	digest := inspection.Digest(req.BlindCode, req.Plate, req.Well, req.Verifier,
 		boolText(req.Contaminated), int64Text(req.Generation))
 
-	if rec, ok := s.store.FindOperation(req.OperationID); ok {
+	if rec, ok := s.store.FindOperation(taskID, req.OperationID); ok {
 		if rec.RequestDigest != digest {
 			return PathogenResponse{}, domain.NewError(domain.CodeIdempotencyConflict, "operation content conflict", req.OperationID)
 		}

@@ -342,9 +342,9 @@ func (s *SQLite) ListAllAudit() ([]inspection.AuditEvent, error) {
 	return scanAudit(rows)
 }
 
-func (s *SQLite) FindOperation(op string) (*inspection.IdempotencyRecord, bool) {
+func (s *SQLite) FindOperation(task inspection.TaskID, op string) (*inspection.IdempotencyRecord, bool) {
 	row := s.db.QueryRow(`SELECT operation_id, task_id, generation, request_digest, response_code, reasons, result_digest
-		FROM operations WHERE operation_id = ?`, op)
+		FROM operations WHERE task_id = ? AND operation_id = ?`, task, op)
 	var r inspection.IdempotencyRecord
 	var reasons string
 	if err := row.Scan(&r.OperationID, &r.TaskID, &r.Generation, &r.RequestDigest, &r.ResponseCode, &reasons, &r.ResultDigest); err != nil {
@@ -648,9 +648,9 @@ func (t *sqliteTx) ListAllAudit() ([]inspection.AuditEvent, error) {
 	return scanAudit(rows)
 }
 
-func (t *sqliteTx) FindOperation(op string) (*inspection.IdempotencyRecord, bool) {
+func (t *sqliteTx) FindOperation(task inspection.TaskID, op string) (*inspection.IdempotencyRecord, bool) {
 	row := t.tx.QueryRow(`SELECT operation_id, task_id, generation, request_digest, response_code, reasons, result_digest
-		FROM operations WHERE operation_id = ?`, op)
+		FROM operations WHERE task_id = ? AND operation_id = ?`, task, op)
 	var r inspection.IdempotencyRecord
 	var reasons string
 	if err := row.Scan(&r.OperationID, &r.TaskID, &r.Generation, &r.RequestDigest, &r.ResponseCode, &reasons, &r.ResultDigest); err != nil {
@@ -789,11 +789,11 @@ func (t *sqliteTx) SaveCredential(c inspection.ReleaseCredential) error {
 
 func (t *sqliteTx) RecordOperation(r inspection.IdempotencyRecord) error {
 	reasons, _ := json.Marshal(r.Reasons)
-	_, err := t.tx.Exec(`INSERT INTO operations (operation_id, task_id, generation, request_digest, response_code, reasons, result_digest)
+	_, err := t.tx.Exec(`INSERT INTO operations (task_id, operation_id, generation, request_digest, response_code, reasons, result_digest)
 		VALUES (?,?,?,?,?,?,?)
-		ON CONFLICT(operation_id) DO UPDATE SET task_id=excluded.task_id, generation=excluded.generation,
+		ON CONFLICT(task_id, operation_id) DO UPDATE SET task_id=excluded.task_id, generation=excluded.generation,
 			request_digest=excluded.request_digest, response_code=excluded.response_code, reasons=excluded.reasons, result_digest=excluded.result_digest`,
-		r.OperationID, r.TaskID, r.Generation, r.RequestDigest, r.ResponseCode, string(reasons), r.ResultDigest)
+		r.TaskID, r.OperationID, r.Generation, r.RequestDigest, r.ResponseCode, string(reasons), r.ResultDigest)
 	return err
 }
 

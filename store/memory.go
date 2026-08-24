@@ -31,7 +31,7 @@ type memState struct {
 	credentials   map[inspection.TaskID]*inspection.ReleaseCredential
 	audit         map[inspection.TaskID][]inspection.AuditEvent
 	auditSeq      uint64
-	ops           map[string]*inspection.IdempotencyRecord
+	ops           map[inspection.TaskID]map[string]*inspection.IdempotencyRecord
 }
 
 func newMemState() *memState {
@@ -49,7 +49,7 @@ func newMemState() *memState {
 		reviews:       make(map[inspection.TaskID][]review.ReviewAndFinal),
 		credentials:   make(map[inspection.TaskID]*inspection.ReleaseCredential),
 		audit:         make(map[inspection.TaskID][]inspection.AuditEvent),
-		ops:           make(map[string]*inspection.IdempotencyRecord),
+		ops:           make(map[inspection.TaskID]map[string]*inspection.IdempotencyRecord),
 	}
 }
 
@@ -79,9 +79,12 @@ func cloneMemState(src *memState) *memState {
 		dst.audit[k] = append([]inspection.AuditEvent(nil), v...)
 	}
 	dst.auditSeq = src.auditSeq
-	for k, v := range src.ops {
-		cp := *v
-		dst.ops[k] = &cp
+	for k, inner := range src.ops {
+		dst.ops[k] = make(map[string]*inspection.IdempotencyRecord, len(inner))
+		for op, rec := range inner {
+			cp := *rec
+			dst.ops[k][op] = &cp
+		}
 	}
 	return dst
 }
@@ -199,10 +202,14 @@ func (m *Memory) ListAllAudit() ([]inspection.AuditEvent, error) {
 	return m.state.allAudit(), nil
 }
 
-func (m *Memory) FindOperation(op string) (*inspection.IdempotencyRecord, bool) {
+func (m *Memory) FindOperation(task inspection.TaskID, op string) (*inspection.IdempotencyRecord, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	r, ok := m.state.ops[op]
+	inner, ok := m.state.ops[task]
+	if !ok {
+		return nil, false
+	}
+	r, ok := inner[op]
 	if !ok {
 		return nil, false
 	}
@@ -338,8 +345,12 @@ func (t *memTx) ListAudit(id inspection.TaskID) ([]inspection.AuditEvent, error)
 func (t *memTx) ListAllAudit() ([]inspection.AuditEvent, error) {
 	return t.state.allAudit(), nil
 }
-func (t *memTx) FindOperation(op string) (*inspection.IdempotencyRecord, bool) {
-	r, ok := t.state.ops[op]
+func (t *memTx) FindOperation(task inspection.TaskID, op string) (*inspection.IdempotencyRecord, bool) {
+	inner, ok := t.state.ops[task]
+	if !ok {
+		return nil, false
+	}
+	r, ok := inner[op]
 	if !ok {
 		return nil, false
 	}
@@ -427,7 +438,12 @@ func (t *memTx) SaveCredential(c inspection.ReleaseCredential) error {
 
 func (t *memTx) RecordOperation(r inspection.IdempotencyRecord) error {
 	cp := r
-	t.state.ops[r.OperationID] = &cp
+	inner, ok := t.state.ops[r.TaskID]
+	if !ok {
+		inner = make(map[string]*inspection.IdempotencyRecord)
+		t.state.ops[r.TaskID] = inner
+	}
+	inner[r.OperationID] = &cp
 	return nil
 }
 
