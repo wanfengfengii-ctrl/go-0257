@@ -65,9 +65,7 @@ func (s *ScriptedAmplifier) Read(plate occupancy.PlateID, well occupancy.WellID)
 	k := wellKey(plate, well)
 	if len(s.faults[k]) > 0 {
 		f := s.faults[k][0]
-		if f != DeviceTimeout {
-			s.faults[k] = s.faults[k][1:]
-		}
+		s.faults[k] = s.faults[k][1:]
 		return 0, faultError(f, plate, well)
 	}
 	s.next++
