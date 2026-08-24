@@ -30,8 +30,12 @@ const (
 
 // OccupancySlot records a chamber time window and/or a plate well bound to a
 // task, blind code and generation. A released slot keeps its release reason
-// for the audit trail.
+// for the audit trail. Seq is the persisted row identity assigned by the store
+// on first save; a non-zero Seq means SaveOccupancy updates the existing row in
+// place rather than appending a duplicate, so releasing or re-chambering a
+// slot truly closes the original active row instead of leaving it bound.
 type OccupancySlot struct {
+	Seq           uint64
 	Chamber       ChamberID
 	Start         domain.LogicalTime
 	End           domain.LogicalTime

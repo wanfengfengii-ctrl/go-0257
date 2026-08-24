@@ -23,6 +23,7 @@ type memState struct {
 	blindSamples  map[inspection.TaskID][]blindcode.BlindSample
 	splits        map[inspection.TaskID][]blindcode.TripleSplit
 	occupancies   map[inspection.TaskID][]occupancy.OccupancySlot
+	occupancySeq  uint64
 	germinations  map[inspection.TaskID][]germination.GerminationCell
 	moisture      map[inspection.TaskID][]measure.MoisturePurityEvidence
 	pathogen      map[inspection.TaskID][]pathogen.PathogenEvidence
@@ -67,6 +68,7 @@ func cloneMemState(src *memState) *memState {
 	copySliceMap(dst.blindSamples, src.blindSamples)
 	copySliceMap(dst.splits, src.splits)
 	copySliceMap(dst.occupancies, src.occupancies)
+	dst.occupancySeq = src.occupancySeq
 	copySliceMap(dst.germinations, src.germinations)
 	copySliceMap(dst.moisture, src.moisture)
 	copySliceMap(dst.pathogen, src.pathogen)
@@ -266,6 +268,29 @@ func (s *memState) openOccupancies() []occupancy.OccupancySlot {
 	return out
 }
 
+// upsertOccupancy writes slot o into the task's occupancy slice, updating the
+// row with the same persisted Seq in place when present and appending a fresh
+// row (with a newly assigned Seq) otherwise. Appending on a missing Seq keeps
+// the initial occupy path unchanged; updating in place on a non-zero Seq is
+// what makes Release and Rechamber truly close the original active row instead
+// of leaving a duplicate occupied row bound to its resource.
+func (s *memState) upsertOccupancy(o occupancy.OccupancySlot) occupancy.OccupancySlot {
+	slots := s.occupancies[o.TaskID]
+	if o.Seq != 0 {
+		for i := range slots {
+			if slots[i].Seq == o.Seq {
+				slots[i] = o
+				s.occupancies[o.TaskID] = slots
+				return o
+			}
+		}
+	}
+	s.occupancySeq++
+	o.Seq = s.occupancySeq
+	s.occupancies[o.TaskID] = append(slots, o)
+	return o
+}
+
 func (s *memState) allAudit() []inspection.AuditEvent {
 	var out []inspection.AuditEvent
 	for _, events := range s.audit {
@@ -390,7 +415,7 @@ func (t *memTx) MarkBlindUnblinded(task inspection.TaskID, code blindcode.BlindC
 }
 
 func (t *memTx) SaveOccupancy(o occupancy.OccupancySlot) error {
-	t.state.occupancies[o.TaskID] = append(t.state.occupancies[o.TaskID], o)
+	t.state.upsertOccupancy(o)
 	return nil
 }
 

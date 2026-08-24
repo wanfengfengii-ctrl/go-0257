@@ -66,7 +66,10 @@ func (s *Service) Rechamber(id string, req RechamberRequest) (RechamberResponse,
 		}
 
 		// Release this task's current chamber slot, then arbitrate the new
-		// window against the remaining open slots.
+		// window against the remaining open slots. Only the moving task's own
+		// current chamber slot is dropped; every other task's open slot must
+		// stay in the arbitration set so a move onto an already-occupied window
+		// is rejected as a conflict.
 		var remaining []occupancy.OccupancySlot
 		for _, sl := range openSlots {
 			if sl.TaskID == taskID && sl.Chamber != "" {
@@ -76,6 +79,7 @@ func (s *Service) Rechamber(id string, req RechamberRequest) (RechamberResponse,
 				}
 				continue
 			}
+			remaining = append(remaining, sl)
 		}
 		arb2 := occupancy.NewArbiter(remaining)
 		if derr := arb2.ReserveChamber(occupancy.ChamberID(req.Chamber),

@@ -157,7 +157,7 @@ func (s *SQLite) ListSplits(id inspection.TaskID) ([]blindcode.TripleSplit, erro
 }
 
 func (s *SQLite) ListOccupancies(id inspection.TaskID) ([]occupancy.OccupancySlot, error) {
-	rows, err := s.db.Query(`SELECT task_id, chamber, start, end, plate, well, blind_code, generation, status, release_reason
+	rows, err := s.db.Query(`SELECT seq, task_id, chamber, start, end, plate, well, blind_code, generation, status, release_reason
 		FROM occupancies WHERE task_id = ? ORDER BY seq`, id)
 	if err != nil {
 		return nil, err
@@ -167,7 +167,7 @@ func (s *SQLite) ListOccupancies(id inspection.TaskID) ([]occupancy.OccupancySlo
 }
 
 func (s *SQLite) ListOpenOccupancies() ([]occupancy.OccupancySlot, error) {
-	rows, err := s.db.Query(`SELECT task_id, chamber, start, end, plate, well, blind_code, generation, status, release_reason
+	rows, err := s.db.Query(`SELECT seq, task_id, chamber, start, end, plate, well, blind_code, generation, status, release_reason
 		FROM occupancies WHERE status IN ('reserved','occupied') ORDER BY seq`)
 	if err != nil {
 		return nil, err
@@ -180,7 +180,7 @@ func scanOccupancies(rows *sql.Rows) ([]occupancy.OccupancySlot, error) {
 	var out []occupancy.OccupancySlot
 	for rows.Next() {
 		var o occupancy.OccupancySlot
-		if err := rows.Scan(&o.TaskID, &o.Chamber, &o.Start, &o.End, &o.Plate, &o.Well, &o.BlindCode, &o.Generation, &o.Status, &o.ReleaseReason); err != nil {
+		if err := rows.Scan(&o.Seq, &o.TaskID, &o.Chamber, &o.Start, &o.End, &o.Plate, &o.Well, &o.BlindCode, &o.Generation, &o.Status, &o.ReleaseReason); err != nil {
 			return nil, err
 		}
 		out = append(out, o)
@@ -503,7 +503,7 @@ func (t *sqliteTx) ListSplits(id inspection.TaskID) ([]blindcode.TripleSplit, er
 }
 
 func (t *sqliteTx) ListOccupancies(id inspection.TaskID) ([]occupancy.OccupancySlot, error) {
-	rows, err := t.tx.Query(`SELECT task_id, chamber, start, end, plate, well, blind_code, generation, status, release_reason
+	rows, err := t.tx.Query(`SELECT seq, task_id, chamber, start, end, plate, well, blind_code, generation, status, release_reason
 		FROM occupancies WHERE task_id = ? ORDER BY seq`, id)
 	if err != nil {
 		return nil, err
@@ -513,7 +513,7 @@ func (t *sqliteTx) ListOccupancies(id inspection.TaskID) ([]occupancy.OccupancyS
 }
 
 func (t *sqliteTx) ListOpenOccupancies() ([]occupancy.OccupancySlot, error) {
-	rows, err := t.tx.Query(`SELECT task_id, chamber, start, end, plate, well, blind_code, generation, status, release_reason
+	rows, err := t.tx.Query(`SELECT seq, task_id, chamber, start, end, plate, well, blind_code, generation, status, release_reason
 		FROM occupancies WHERE status IN ('reserved','occupied') ORDER BY seq`)
 	if err != nil {
 		return nil, err
@@ -713,6 +713,16 @@ func (t *sqliteTx) MarkBlindUnblinded(task inspection.TaskID, code blindcode.Bli
 }
 
 func (t *sqliteTx) SaveOccupancy(o occupancy.OccupancySlot) error {
+	// A slot loaded from the store carries its row identity in Seq; update that
+	// row in place so releasing or re-chambering truly closes the original
+	// active row instead of appending a duplicate that leaves the resource
+	// bound. A fresh slot has Seq == 0 and is inserted, letting AUTOINCREMENT
+	// assign its row identity.
+	if o.Seq != 0 {
+		_, err := t.tx.Exec(`UPDATE occupancies SET task_id=?, chamber=?, start=?, end=?, plate=?, well=?, blind_code=?, generation=?, status=?, release_reason=? WHERE seq=?`,
+			o.TaskID, o.Chamber, o.Start, o.End, o.Plate, o.Well, o.BlindCode, o.Generation, o.Status, o.ReleaseReason, o.Seq)
+		return err
+	}
 	_, err := t.tx.Exec(`INSERT INTO occupancies (task_id, chamber, start, end, plate, well, blind_code, generation, status, release_reason)
 		VALUES (?,?,?,?,?,?,?,?,?,?)`,
 		o.TaskID, o.Chamber, o.Start, o.End, o.Plate, o.Well, o.BlindCode, o.Generation, o.Status, o.ReleaseReason)
