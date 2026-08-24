@@ -133,6 +133,16 @@ func (m *Memory) ListBlindSamples(id inspection.TaskID) ([]blindcode.BlindSample
 	return m.state.blindSamples[id], nil
 }
 
+// BlindCodeUnblinded reports whether the blind code has been revealed through
+// the one-way gate in any task. It scans every task's blind samples — terminal
+// batches keep their unblinded rows — so a code reused by a later batch is
+// detected.
+func (m *Memory) BlindCodeUnblinded(code blindcode.BlindCode) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.state.blindCodeUnblinded(code), nil
+}
+
 func (m *Memory) ListSplits(id inspection.TaskID) ([]blindcode.TripleSplit, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -276,6 +286,21 @@ func (s *memState) allAudit() []inspection.AuditEvent {
 	return out
 }
 
+// blindCodeUnblinded reports whether the code has been revealed through the
+// one-way gate in any task. It scans every task's blind samples — terminal
+// batches keep their unblinded rows — so a code reused by a later batch is
+// detected.
+func (s *memState) blindCodeUnblinded(code blindcode.BlindCode) bool {
+	for _, samples := range s.blindSamples {
+		for _, b := range samples {
+			if b.Code == code && b.Unblinded {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (s *memState) getCredential(id inspection.TaskID) (*inspection.ReleaseCredential, error) {
 	c, ok := s.credentials[id]
 	if !ok {
@@ -304,6 +329,9 @@ func (t *memTx) ListConfirmations(id inspection.TaskID) ([]inspection.SamplingCo
 }
 func (t *memTx) ListBlindSamples(id inspection.TaskID) ([]blindcode.BlindSample, error) {
 	return t.state.blindSamples[id], nil
+}
+func (t *memTx) BlindCodeUnblinded(code blindcode.BlindCode) (bool, error) {
+	return t.state.blindCodeUnblinded(code), nil
 }
 func (t *memTx) ListSplits(id inspection.TaskID) ([]blindcode.TripleSplit, error) {
 	return t.state.splits[id], nil

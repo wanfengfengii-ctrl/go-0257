@@ -165,12 +165,20 @@ func (s *Service) Finalize(id string, req FinalizeRequest) (FinalizeResponse, *d
 		}
 		if decision.Outcome == review.OutcomeReleased {
 			// Reveal every blind code through the one-way unblinding gate and
-			// persist the reveal so it survives restart.
+			// persist the reveal so it survives restart. The gate is global and
+			// backed by the store: a code already opened by any task — even a
+			// terminal batch whose blind code is reused by a later batch — can
+			// never pass the terminal unblinding again.
 			for _, a := range t.BlindAllocs {
-				if _, derr := s.gate.Open(taskID, t.Generation, blindcode.BlindCode(a.Code)); derr != nil {
-					return derr
+				code := blindcode.BlindCode(a.Code)
+				already, err := tx.BlindCodeUnblinded(code)
+				if err != nil {
+					return err
 				}
-				if err := tx.MarkBlindUnblinded(taskID, blindcode.BlindCode(a.Code)); err != nil {
+				if already {
+					return domain.NewError(domain.CodeBlindDuplicate, "blind code already unblinded", a.Code)
+				}
+				if err := tx.MarkBlindUnblinded(taskID, code); err != nil {
 					return err
 				}
 			}

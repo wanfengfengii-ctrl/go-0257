@@ -139,6 +139,18 @@ func (s *SQLite) ListBlindSamples(id inspection.TaskID) ([]blindcode.BlindSample
 	return out, rows.Err()
 }
 
+// BlindCodeUnblinded reports whether the blind code has been revealed through
+// the one-way gate in any task. The query scans every task — terminal batches
+// keep their unblinded rows — so a code reused by a later batch is detected.
+func (s *SQLite) BlindCodeUnblinded(code blindcode.BlindCode) (bool, error) {
+	var n int
+	err := s.db.QueryRow(`SELECT COUNT(1) FROM blind_samples WHERE code = ? AND unblinded = 1`, code).Scan(&n)
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
 func (s *SQLite) ListSplits(id inspection.TaskID) ([]blindcode.TripleSplit, error) {
 	rows, err := s.db.Query(`SELECT task_id, code, split, quantity FROM splits WHERE task_id = ? ORDER BY code, split`, id)
 	if err != nil {
@@ -483,6 +495,18 @@ func (t *sqliteTx) ListBlindSamples(id inspection.TaskID) ([]blindcode.BlindSamp
 		out = append(out, b)
 	}
 	return out, rows.Err()
+}
+
+// BlindCodeUnblinded reports whether the blind code has been revealed in any
+// task, reading the same snapshot the transaction sees so the terminal
+// unblinding check is consistent with the rows it is about to write.
+func (t *sqliteTx) BlindCodeUnblinded(code blindcode.BlindCode) (bool, error) {
+	var n int
+	err := t.tx.QueryRow(`SELECT COUNT(1) FROM blind_samples WHERE code = ? AND unblinded = 1`, code).Scan(&n)
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
 }
 
 func (t *sqliteTx) ListSplits(id inspection.TaskID) ([]blindcode.TripleSplit, error) {

@@ -25,6 +25,11 @@ type Reader interface {
 
 	ListConfirmations(inspection.TaskID) ([]inspection.SamplingConfirmation, error)
 	ListBlindSamples(inspection.TaskID) ([]blindcode.BlindSample, error)
+	// BlindCodeUnblinded reports whether the given blind code has already been
+	// opened through the one-way unblinding gate in any task — terminal or not
+	// — so a code that was revealed at a previous batch release can never pass
+	// the terminal unblinding again, even when reused by a later batch.
+	BlindCodeUnblinded(blindcode.BlindCode) (bool, error)
 	ListSplits(inspection.TaskID) ([]blindcode.TripleSplit, error)
 
 	ListOccupancies(inspection.TaskID) ([]occupancy.OccupancySlot, error)

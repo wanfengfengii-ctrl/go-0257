@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"riceguard/blindcode"
 	"riceguard/catalog"
 	"riceguard/domain"
 	"riceguard/inspection"
@@ -25,7 +24,6 @@ type Service struct {
 	amp     pathogen.Amplifier
 	meter   measure.MoistureMeter
 	retry   pathogen.RetryPolicy
-	gate    *blindcode.MemoryGate
 }
 
 // NewService wires the catalog, role directory, store and instrument adapters
@@ -38,7 +36,6 @@ func NewService(c catalog.Catalog, r catalog.RoleDirectory, s store.Store, amp p
 		amp:     amp,
 		meter:   meter,
 		retry:   pathogen.DefaultRetryPolicy,
-		gate:    blindcode.NewMemoryGate(),
 	}
 }
 
