@@ -71,7 +71,10 @@ func (s *Service) RecordGermination(id string, req GerminationRequest) (Germinat
 
 		resp = GerminationResponse{TaskID: taskID, Status: t.Status, Generation: t.Generation}
 
-		codes := []string{req.BlindCode}
+		// Coverage spans the whole locked blind-code × day-age grid: a task with
+		// multiple blind codes may not advance until every code's day ages are
+		// observed, and missing cells must report the still-uncovered codes.
+		codes := allocCodes(t.BlindAllocs)
 		if germination.Covered(cells, codes, t.DayAges) {
 			energy, rate := minVigor(cells, codes, t.DayAges, t.GrainCount)
 			resp.EnergyBp = energy
