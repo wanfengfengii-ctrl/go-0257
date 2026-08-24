@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS pathogen (
 	late_isolated INTEGER NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pathogen_well
-	ON pathogen(task_id, plate, well);
+	ON pathogen(task_id, plate, well) WHERE late_isolated = 0;
 CREATE INDEX IF NOT EXISTS idx_pathogen_task ON pathogen(task_id);
 
 CREATE TABLE IF NOT EXISTS attempts (

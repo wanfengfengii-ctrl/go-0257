@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"encoding/json"
+	"strings"
 
 	_ "modernc.org/sqlite"
 
@@ -49,6 +50,10 @@ func OpenSQLite(path string) (*SQLite, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	if err := migratePathogenWellIndex(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	if err := ensureClock(db); err != nil {
 		_ = db.Close()
 		return nil, err
@@ -66,6 +71,32 @@ func ensureClock(db *sql.DB) error {
 		_, err = db.Exec(`INSERT INTO meta(key, value) VALUES (?, 0)`, clockKey)
 	}
 	return err
+}
+
+// migratePathogenWellIndex upgrades the pathogen well uniqueness constraint.
+// A well may carry at most one live reading, but quarantined late readings
+// (late_isolated = 1) for an old generation must coexist with the current
+// reading for the same well. The unique index is therefore partial: it only
+// covers live evidence. On databases created before this fix the index was
+// unconditional and rejected a current reading for a well that already held an
+// isolated late reading (surfacing as RICE_NOT_FOUND). DROP INDEX IF EXISTS is
+// idempotent, so re-running it on a fresh database is a no-op and the partial
+// index is then (re)created by schemaDDL.
+func migratePathogenWellIndex(db *sql.DB) error {
+	const name = "idx_pathogen_well"
+	var sqlText string
+	err := db.QueryRow(`SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?`, name).Scan(&sqlText)
+	if err == nil {
+		// Index exists. Only drop it when it is the old, unconditional form.
+		if !strings.Contains(sqlText, "late_isolated") {
+			if _, err := db.Exec(`DROP INDEX IF EXISTS ` + name); err != nil {
+				return err
+			}
+		}
+	} else if err != sql.ErrNoRows {
+		return err
+	}
+	return nil
 }
 
 func (s *SQLite) Close() error { return s.db.Close() }
