@@ -350,13 +350,23 @@ func (t *memTx) FindOperation(op string) (*inspection.IdempotencyRecord, bool) {
 // --- memTx writes ---
 
 func (t *memTx) SaveTask(task *inspection.InspectionTask) error {
-	if _, exists := t.state.byLot[task.SeedLot]; exists {
-		if t.state.byLot[task.SeedLot] != task.ID {
+	// A seed lot binds to exactly one OPEN task. Terminal tasks (released,
+	// quarantined, cancelled) release their lot so the same lot can be
+	// re-entered as a fresh inspection.
+	if other, exists := t.state.byLot[task.SeedLot]; exists && other != task.ID {
+		if ot, ok := t.state.tasks[other]; ok && !ot.IsTerminal() {
 			return domain.NewError(domain.CodeOccupancyConflict, "seed lot already bound", task.SeedLot)
 		}
 	}
 	if _, exists := t.state.tasks[task.ID]; !exists {
 		t.state.order = append(t.state.order, task.ID)
+	}
+	if task.IsTerminal() {
+		// Release the lot when the task reaches a legal terminal outcome.
+		if bound, exists := t.state.byLot[task.SeedLot]; exists && bound == task.ID {
+			delete(t.state.byLot, task.SeedLot)
+		}
+	} else {
 		t.state.byLot[task.SeedLot] = task.ID
 	}
 	cp := *task

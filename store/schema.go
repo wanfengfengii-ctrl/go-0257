@@ -32,8 +32,16 @@ CREATE TABLE IF NOT EXISTS tasks (
 	terminal_outcome TEXT NOT NULL DEFAULT '',
 	created_at       INTEGER NOT NULL
 );
+-- A seed lot is bound to exactly one OPEN inspection task. The uniqueness
+-- constraint is partial: once a task reaches a legal terminal outcome
+-- (released, quarantined or cancelled) it releases its seed lot so the same
+-- lot can be re-entered as a fresh inspection. Rebuild the index on every
+-- open so an existing database that created the index without the partial
+-- predicate is migrated in place.
+DROP INDEX IF EXISTS idx_tasks_seed_lot_open;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_seed_lot_open
-	ON tasks(seed_lot);
+	ON tasks(seed_lot)
+	WHERE status NOT IN ('released', 'quarantined', 'cancelled');
 
 CREATE TABLE IF NOT EXISTS confirmations (
 	task_id      TEXT NOT NULL,
