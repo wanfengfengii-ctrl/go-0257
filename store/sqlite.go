@@ -674,7 +674,7 @@ func (t *sqliteTx) SaveTask(task *inspection.InspectionTask) error {
 		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET
 			status=excluded.status, generation=excluded.generation,
-			terminal_version=excluded.terminal_version`,
+			terminal_version=excluded.terminal_version, terminal_outcome=excluded.terminal_outcome`,
 		task.ID, task.SeedLot, task.Field, task.Variety, task.FemaleParent, task.MaleParent,
 		task.FemaleCert, task.MaleCert, task.CertSummary, task.Status, task.Generation, task.MoistureMax,
 		task.PathogenMax, task.MinPurity, task.GrainCount, task.Chamber, task.ChamberStart, task.ChamberEnd,
