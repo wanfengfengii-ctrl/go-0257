@@ -101,7 +101,7 @@ func (s *Service) RecordPathogen(id string, req PathogenRequest) (PathogenRespon
 		resp = PathogenResponse{TaskID: taskID, Status: t.Status, Generation: t.Generation,
 			Verdict: verdict, RejudgeGen: rejudgeGen, Contaminated: req.Contaminated}
 
-		if allWellsCovered(existing, []string{req.Well}, t.Plate) {
+		if allWellsCovered(existing, t.Wells, t.Plate) {
 			if err := t.Advance(inspection.StatusMoisture, t.Generation); err != nil {
 				return err
 			}
