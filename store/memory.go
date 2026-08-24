@@ -70,6 +70,7 @@ func cloneMemState(src *memState) *memState {
 	copySliceMap(dst.germinations, src.germinations)
 	copySliceMap(dst.moisture, src.moisture)
 	copySliceMap(dst.pathogen, src.pathogen)
+	copySliceMap(dst.attempts, src.attempts)
 	copySliceMap(dst.reviews, src.reviews)
 	for k, v := range src.credentials {
 		cp := *v
@@ -79,6 +80,10 @@ func cloneMemState(src *memState) *memState {
 		dst.audit[k] = append([]inspection.AuditEvent(nil), v...)
 	}
 	dst.auditSeq = src.auditSeq
+	for k, v := range src.ops {
+		cp := *v
+		dst.ops[k] = &cp
+	}
 	return dst
 }
 
