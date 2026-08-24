@@ -50,6 +50,14 @@ func (s *Service) ConfirmSampling(id string, req SamplingRequest) (SamplingRespo
 		if err := s.requireSampler(tx, req.Reviewer); err != nil {
 			return err
 		}
+		// The two sampling confirmations must come from distinct qualified
+		// personnel. A second confirmation by the same reviewer — even under a
+		// different operation id, which bypasses the idempotency replay check —
+		// must not be recorded, otherwise a single person could drive the task
+		// into blind_split alone.
+		if err := s.requireDistinctConfirmer(tx, taskID, req.Reviewer); err != nil {
+			return err
+		}
 
 		now := tx.NextTime()
 		conf := inspection.SamplingConfirmation{
