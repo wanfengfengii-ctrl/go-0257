@@ -57,22 +57,34 @@ func OpenSQLite(path string) (*SQLite, error) {
 }
 
 func ensureClock(db *sql.DB) error {
-	var tasks int
-	if err := db.QueryRow(`SELECT COUNT(1) FROM tasks`).Scan(&tasks); err != nil {
+	// The logical clock backs task-id allocation (task-<n>) and must keep
+	// increasing across restarts so a fresh post-restart task never reuses a
+	// task id that still belongs to an existing batch. Recover the clock to a
+	// value at least as large as the greatest persisted timestamp: the next
+	// NextTime() then yields a strictly greater value and the new task id is
+	// distinct from every existing one. created_at is the logical time each
+	// task was minted with, so MAX(created_at) is the safe floor.
+	var floor uint64
+	if err := db.QueryRow(`SELECT COALESCE(MAX(created_at), 0) FROM tasks`).Scan(&floor); err != nil {
 		return err
 	}
-	if tasks > 0 {
-		_, err := db.Exec(`INSERT OR REPLACE INTO meta(key, value) VALUES (?, 0)`, clockKey)
+	var cur uint64
+	if err := db.QueryRow(`SELECT value FROM meta WHERE key = ?`, clockKey).Scan(&cur); err != nil {
+		if err == sql.ErrNoRows {
+			cur = 0
+		} else {
+			return err
+		}
+	}
+	if floor > cur {
+		cur = floor
+	}
+	if cur == 0 {
+		_, err := db.Exec(`INSERT INTO meta(key, value) VALUES (?, 0)`, clockKey)
 		return err
 	}
-	var n int
-	err := db.QueryRow(`SELECT COUNT(1) FROM meta WHERE key = ?`, clockKey).Scan(&n)
-	if err != nil {
-		return err
-	}
-	if n == 0 {
-		_, err = db.Exec(`INSERT INTO meta(key, value) VALUES (?, 0)`, clockKey)
-	}
+	_, err := db.Exec(`INSERT INTO meta(key, value) VALUES (?, ?)
+		ON CONFLICT(key) DO UPDATE SET value=excluded.value`, clockKey, cur)
 	return err
 }
 
