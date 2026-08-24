@@ -222,6 +222,16 @@ func (s *Service) collectorSet(tx store.Tx, taskID inspection.TaskID) map[string
 	for _, m := range moists {
 		collectors[m.Collector] = true
 	}
+	// The pathogen verifier is also a key collector: recording the
+	// amplification readout verification is a collection act, and a reviewer
+	// who verified pathogen evidence introduces the same role overlap as one
+	// who collected germination or moisture evidence.
+	paths, _ := tx.ListPathogen(taskID)
+	for _, p := range paths {
+		if p.Verifier != "" {
+			collectors[p.Verifier] = true
+		}
+	}
 	return collectors
 }
 
