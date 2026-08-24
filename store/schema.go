@@ -97,8 +97,15 @@ CREATE TABLE IF NOT EXISTS germinations (
 	operation_id TEXT NOT NULL,
 	valid        INTEGER NOT NULL
 );
+-- The observation cell is keyed by (task_id, blind_code, day_age): each blind
+-- code must be able to record a reading for every locked day age, so the
+-- uniqueness constraint must include blind_code. Without it, a second blind
+-- code's reading for the same day age collides with the first. Drop any index
+-- created under the previous, too-broad (task_id, day_age) definition before
+-- recreating, since CREATE ... IF NOT EXISTS leaves an existing index untouched.
+DROP INDEX IF EXISTS idx_germinations_cell;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_germinations_cell
-	ON germinations(task_id, day_age);
+	ON germinations(task_id, blind_code, day_age);
 CREATE INDEX IF NOT EXISTS idx_germinations_task ON germinations(task_id);
 
 CREATE TABLE IF NOT EXISTS moisture (
