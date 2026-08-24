@@ -713,8 +713,16 @@ func (t *sqliteTx) MarkBlindUnblinded(task inspection.TaskID, code blindcode.Bli
 }
 
 func (t *sqliteTx) SaveOccupancy(o occupancy.OccupancySlot) error {
+	// Upsert against the per-resource key (task_id, chamber, plate, well) so
+	// that releasing or rechambering transitions the existing slot row instead
+	// of appending a duplicate. A bare INSERT would leave the original occupied
+	// row in place, so ListOpenOccupancies would keep reporting the released
+	// resource as held and block its reuse after cancellation.
 	_, err := t.tx.Exec(`INSERT INTO occupancies (task_id, chamber, start, end, plate, well, blind_code, generation, status, release_reason)
-		VALUES (?,?,?,?,?,?,?,?,?,?)`,
+		VALUES (?,?,?,?,?,?,?,?,?,?)
+		ON CONFLICT(task_id, chamber, plate, well) DO UPDATE SET
+			start=excluded.start, end=excluded.end, blind_code=excluded.blind_code,
+			generation=excluded.generation, status=excluded.status, release_reason=excluded.release_reason`,
 		o.TaskID, o.Chamber, o.Start, o.End, o.Plate, o.Well, o.BlindCode, o.Generation, o.Status, o.ReleaseReason)
 	return err
 }

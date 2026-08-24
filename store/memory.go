@@ -390,7 +390,19 @@ func (t *memTx) MarkBlindUnblinded(task inspection.TaskID, code blindcode.BlindC
 }
 
 func (t *memTx) SaveOccupancy(o occupancy.OccupancySlot) error {
-	t.state.occupancies[o.TaskID] = append(t.state.occupancies[o.TaskID], o)
+	// Upsert against the per-resource key (task_id, chamber, plate, well) so
+	// that releasing or rechambering transitions the existing slot instead of
+	// appending a duplicate. A bare append would leave the original occupied
+	// slot in place, so openOccupancies would keep reporting the released
+	// resource as held and block its reuse after cancellation.
+	slots := t.state.occupancies[o.TaskID]
+	for i := range slots {
+		if slots[i].Chamber == o.Chamber && slots[i].Plate == o.Plate && slots[i].Well == o.Well {
+			slots[i] = o
+			return nil
+		}
+	}
+	t.state.occupancies[o.TaskID] = append(slots, o)
 	return nil
 }
 

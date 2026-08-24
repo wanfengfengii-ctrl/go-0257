@@ -83,6 +83,13 @@ CREATE TABLE IF NOT EXISTS occupancies (
 CREATE INDEX IF NOT EXISTS idx_occupancies_task ON occupancies(task_id);
 CREATE INDEX IF NOT EXISTS idx_occupancies_chamber ON occupancies(chamber);
 CREATE INDEX IF NOT EXISTS idx_occupancies_well ON occupancies(plate, well);
+-- A task holds at most one slot per resource: a chamber slot is identified by
+-- (task, chamber) with empty plate/well, and a well slot by (task, plate,
+-- well) with an empty chamber. The composite key lets SaveOccupancy upsert the
+-- existing slot so releasing or rechambering transitions the same row instead
+-- of leaving a stale occupied record that blocks reuse after cancellation.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_occupancies_task_resource
+	ON occupancies(task_id, chamber, plate, well);
 
 CREATE TABLE IF NOT EXISTS germinations (
 	task_id      TEXT NOT NULL,
