@@ -33,6 +33,25 @@ func (s *Service) RecordPathogen(id string, req PathogenRequest) (PathogenRespon
 		return resp, nil
 	}
 
+	// Pre-flight state guard. A pathogen request is only valid while the task
+	// is in the pathogen stage (a late reading for an older generation is
+	// isolated separately below). Reject terminal tasks and tasks that have
+	// not yet reached — or have already left — the pathogen stage before
+	// touching the instrument, so a stale submission is rejected by state
+	// rather than consuming device retries and leaving instrument records in
+	// the audit at the wrong stage. The transaction re-validates authoritatively.
+	t, err := s.store.GetTask(taskID)
+	if err != nil {
+		return PathogenResponse{}, asDomain(err)
+	}
+	if t.IsTerminal() {
+		return PathogenResponse{}, domain.NewError(domain.CodeFinalized, string(t.Status))
+	}
+	lateReading := req.Generation > 0 && req.Generation < int64(t.Generation)
+	if !lateReading && t.Status != inspection.StatusPathogen {
+		return PathogenResponse{}, domain.NewError(domain.CodeBadRequest, "not in pathogen state", string(t.Status))
+	}
+
 	// Obtain the reading (and attempt history) from the instrument before
 	// entering the transaction, so a retryable fault can be committed as a
 	// pending-retry record even though no valid reading is produced.
@@ -46,7 +65,7 @@ func (s *Service) RecordPathogen(id string, req PathogenRequest) (PathogenRespon
 	}
 
 	var resp PathogenResponse
-	err := s.store.Mutate(func(tx store.Tx) error {
+	err = s.store.Mutate(func(tx store.Tx) error {
 		t, err := tx.GetTask(taskID)
 		if err != nil {
 			return err
