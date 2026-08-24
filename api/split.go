@@ -48,6 +48,14 @@ func (s *Service) SplitBlindSamples(id string, req SplitRequest) (SplitResponse,
 				return err
 			}
 		}
+		// Persist the blind-sample records so the task detail and downstream
+		// release carry traceable, unblindable sample entries. Written in the
+		// same transaction so a failed write rolls back the whole split.
+		for _, bs := range blindcode.BuildSamples(taskID, t.Generation, matrix) {
+			if err := tx.SaveBlindSample(bs); err != nil {
+				return err
+			}
+		}
 		if err := t.Advance(inspection.StatusOccupying, t.Generation); err != nil {
 			return err
 		}
