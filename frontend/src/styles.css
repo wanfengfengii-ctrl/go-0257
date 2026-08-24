@@ -1,0 +1,127 @@
+:root {
+  --bg: #0f172a;
+  --card: #1e293b;
+  --ink: #e2e8f0;
+  --accent: #22c55e;
+  --err: #f87171;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: var(--card);
+  border-bottom: 1px solid #334155;
+}
+
+.topbar h1 { font-size: 1.1rem; margin: 0; }
+
+.health { font-weight: 600; }
+.health.ok { color: var(--accent); }
+.health.off { color: var(--err); }
+
+main { padding: 24px; display: grid; gap: 24px; max-width: 960px; margin: 0 auto; }
+
+.card {
+  background: var(--card);
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.card h2 { margin: 0 0 16px; font-size: 1rem; }
+
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.grid label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; }
+.grid input {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #475569;
+  background: #0b1220;
+  color: var(--ink);
+}
+.grid button {
+  align-self: end;
+  padding: 9px 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #052e16;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.result { margin: 12px 0 0; font-size: 0.9rem; }
+.result.ok { color: var(--accent); }
+.result.err { color: var(--err); }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid #334155; }
+th { color: #94a3b8; }
+
+select {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #475569;
+  background: #0b1220;
+  color: var(--ink);
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.actions button {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #052e16;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.actions button:hover { filter: brightness(1.1); }
+
+.raw {
+  background: #0b1220;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 0.75rem;
+  overflow: auto;
+  max-height: 320px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+table button {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 5px;
+  background: var(--accent);
+  color: #052e16;
+  font-weight: 600;
+  cursor: pointer;
+}
