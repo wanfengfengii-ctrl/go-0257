@@ -366,7 +366,9 @@ func (s *SQLite) Mutate(fn func(Tx) error) error {
 	}
 	stx := &sqliteTx{tx: tx}
 	if err := fn(stx); err != nil {
-		_ = tx.Commit()
+		// Roll back so a failed transaction (for example an occupancy
+		// conflict during re-chamber) leaves no partial writes behind.
+		_ = tx.Rollback()
 		return err
 	}
 	return tx.Commit()
