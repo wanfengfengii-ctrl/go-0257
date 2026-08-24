@@ -86,6 +86,13 @@ func (s *Service) CreateTask(req CreateTaskRequest) (CreateTaskResponse, *domain
 
 	var resp CreateTaskResponse
 	err := s.store.Mutate(func(tx store.Tx) error {
+		// A seed lot may be bound to at most one open task. Checking here,
+		// before any write, yields a stable rejection instead of letting the
+		// task row collide with the partial unique index and leaving a
+		// half-written operation/audit trail behind a phantom task id.
+		if err := s.assertSeedLotFree(tx, req.SeedLot); err != nil {
+			return err
+		}
 		// Blind codes must not be bound to another open task.
 		if err := s.assertBlindCodesFree(tx, allocs); err != nil {
 			return err
@@ -118,7 +125,14 @@ func (s *Service) CreateTask(req CreateTaskRequest) (CreateTaskResponse, *domain
 			TerminalVersion: 0,
 			CreatedAt:       now,
 		}
-		_ = tx.SaveTask(t)
+		// Persisting the task row must not be silently skipped: a unique-index
+		// violation (e.g. a concurrent create for the same seed lot) would
+		// otherwise leave only the operation and audit rows committed, minting
+		// a task id that cannot be found. Surface the error so the whole
+		// transaction rolls back atomically.
+		if err := tx.SaveTask(t); err != nil {
+			return err
+		}
 		resp = CreateTaskResponse{TaskID: string(t.ID), Status: t.Status, Generation: t.Generation}
 		tx.RecordOperation(inspection.NewRecord(req.OperationID, t.ID, t.Generation, digest, encode(resp)))
 		return tx.AppendAudit(audit(now, "system", t.Status, "create_task", domain.CodeNone, nil))
@@ -178,6 +192,28 @@ func (s *Service) assembleView(t *inspection.InspectionTask) TaskView {
 	v.Audit, _ = s.store.ListAudit(t.ID)
 	v.Summary, _ = s.ComputeSummary(string(t.ID))
 	return v
+}
+
+// assertSeedLotFree rejects creation when the seed lot is already bound to
+// another open task. A seed lot may be tied to at most one open inspection
+// task; terminal tasks no longer hold the lot. This mirrors the partial
+// unique index on tasks(seed_lot) and produces a stable, ordered rejection so
+// that concurrent duplicate creates cannot both succeed.
+func (s *Service) assertSeedLotFree(tx store.Tx, seedLot string) *domain.Error {
+	tasks, err := tx.ListTasks()
+	if err != nil {
+		return asDomain(err)
+	}
+	for _, t := range tasks {
+		if t.IsTerminal() {
+			continue
+		}
+		if t.SeedLot == seedLot {
+			return domain.NewError(domain.CodeOccupancyConflict,
+				domain.SortReasons("seed lot already bound", seedLot, string(t.ID))...)
+		}
+	}
+	return nil
 }
 
 // assertBlindCodesFree rejects creation when any blind code is already bound
