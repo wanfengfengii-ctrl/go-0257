@@ -48,7 +48,7 @@ func (s *Service) ComputeSummary(id string) (TaskSummary, *domain.Error) {
 	}
 
 	paths, _ := s.store.ListPathogen(t.ID)
-	sum.PathogenCovered = allWellsCovered(paths, t.Wells, t.Plate)
+	sum.PathogenCovered = pathogenCovered(paths, t.BlindAllocs, t.Wells, t.Plate)
 	sum.PathogenClean = !pathogenContaminated(paths)
 
 	moists, _ := s.store.ListMoisture(t.ID)

@@ -101,7 +101,7 @@ func (s *Service) RecordPathogen(id string, req PathogenRequest) (PathogenRespon
 		resp = PathogenResponse{TaskID: taskID, Status: t.Status, Generation: t.Generation,
 			Verdict: verdict, RejudgeGen: rejudgeGen, Contaminated: req.Contaminated}
 
-		if allWellsCovered(existing, t.Wells, t.Plate) {
+		if pathogenCovered(existing, t.BlindAllocs, t.Wells, t.Plate) {
 			if err := t.Advance(inspection.StatusMoisture, t.Generation); err != nil {
 				return err
 			}
@@ -208,6 +208,35 @@ func wellCovered(ev []pathogen.PathogenEvidence, plate, well string) bool {
 func allWellsCovered(ev []pathogen.PathogenEvidence, wells []string, plate string) bool {
 	for _, w := range wells {
 		if !wellCovered(ev, plate, w) {
+			return false
+		}
+	}
+	return true
+}
+
+// blindCodeCovered reports whether a blind code has at least one valid,
+// non-isolated pathogen reading on the task's plate. Isolated late readings
+// for an older generation must not count as coverage.
+func blindCodeCovered(ev []pathogen.PathogenEvidence, plate, code string) bool {
+	for _, e := range ev {
+		if !e.LateIsolated && string(e.Plate) == plate && string(e.BlindCode) == code {
+			return true
+		}
+	}
+	return false
+}
+
+// pathogenCovered reports whether pathogen evidence is closed: every locked
+// plate well must carry a valid reading AND every allocated blind code must
+// have contributed at least one valid, non-isolated reading on the plate.
+// Checking wells alone would let a single blind code cover every well while
+// other blind codes contribute no pathogen evidence at all.
+func pathogenCovered(ev []pathogen.PathogenEvidence, allocs []inspection.BlindAllocation, wells []string, plate string) bool {
+	if !allWellsCovered(ev, wells, plate) {
+		return false
+	}
+	for _, a := range allocs {
+		if !blindCodeCovered(ev, plate, a.Code) {
 			return false
 		}
 	}
