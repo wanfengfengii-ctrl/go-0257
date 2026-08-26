@@ -1,3 +1,5 @@
+基于 Go 实现的杂交水稻种子放行管理 Web 项目，一款前后端应用，处理批次建档、检验复核与放行决策管理。
+
 # riceguard-hybrid-seed-release-gate
 
 本 Git 项目来自模型完成任务后的 workspace，不包含嵌套 .git 记录或本地构建产物。
