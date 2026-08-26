@@ -1,3 +1,4 @@
+基于 Go 实现的杂交水稻种子放播检验 Web 项目，一款后端服务，管理样本抽检、发芽监测、病原核验与放播裁决。
 # riceguard-hybrid-seed-release-gate
 
 本 Git 项目来自模型完成任务后的 workspace，不包含嵌套 .git 记录或本地构建产物。
